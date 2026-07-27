@@ -1,78 +1,48 @@
-# ESP32_PCRadio
+# Первичная прошивка через Flash Download Tool
 
-Hardware
+Первую установку прошивки на ESP32-S3 необходимо выполнять через
+[**Espressif Flash Download Tool**](https://docs.espressif.com/projects/esp-test-tools/en/latest/esp32/production_stage/tools/flash_download_tool.html). После первичной установки обновлять прошивку
+и LittleFS можно через OTA в web-интерфейсе устройства.
 
-- ESP32-S3 N16R8
-- CJMCU-1334
+## Настройки Flash Download Tool
 
-Libraries
+- ChipType: `ESP32-S3`
+- SPI MODE: `DIO`
+- SPI SPEED: `80 MHz`
+- FLASH SIZE: `16 MB`
+- Все строки с образами должны быть включены флажками.
+- Перед первой установкой рекомендуется полностью стереть flash-память
+  кнопкой `ERASE`.
 
-- ESP_IDF 5.4.2
-- littlefs 1.20.1
-- esp_audio_codec 2.3.0
-- esp_audio_effects 1.1.0
+## Образы и адреса
 
-Script `create_littlefs.cmd` for creating image and flashing data folder. (Uses mklittlefs.exe)
+Пути в таблице указаны относительно корня рабочего каталога проекта.
 
-Config WiFi `./data/config.json`
+|     Offset | Файл                                        | Назначение                               |
+| ---------: | ------------------------------------------- | ---------------------------------------- |
+|   `0x0000` | `bootloader.bin`                            | Загрузчик                                |
+|   `0x8000` | `partition-table.bin`                       | Таблица разделов                         |
+|   `0xD000` | `ota_data_initial.bin`                      | Начальное состояние OTA                  |
+|  `0x10000` | `ESP32-PCRadio.bin`                         | Основная прошивка                        |
+| `0x410000` | `littlefs_image.bin`                        | LittleFS: webUI, конфигурация и плейлист |
 
-```json
-{
-  "wifi": {
-  "ssid": "SID",
-  "password": "Pass"
-  },
-  "ntp":{
-  "ntp_server": [
-    "pool.ntp.org",
-    "ntp.ix.ru",
-    "ntp0.ntp-servers.net"
-  ],
-  "ntp_tz": "+0300"
-  }
-}
-```
+Второй LittleFS-раздел `storage_ota` находится по адресу `0x610000` и имеет
+размер 2 МБ. При первой установке записывать в него файл не требуется.
+Оставшийся раздел `userdata` начинается с адреса `0x810000`.
 
-## Web interface
+## Порядок первой прошивки
 
-![alt text](tools/doc/screen_ESP32_Web_Radio.png)
+1. Подключить устройство и выбрать его COM-порт.
+2. Добавить в Flash Download Tool все пять файлов из таблицы и указать
+   соответствующие offset.
+3. Проверить настройки flash-памяти.
+4. Выполнить `ERASE`.
+5. Нажать `START` и дождаться успешного завершения записи.
+6. Перезагрузить устройство.
+7. Выполнить первоначальную настройку Wi-Fi через captive portal.
 
-## API
+## Последующие обновления
 
-### PLAYLIST update
-
-```bash
-curl -X POST http://<ip>/api/playlist -H "Content-Type: application/json" -d "update"
-```
-
-### Channel Num
-
-```bash
-curl -X POST http://<ip>/api/channel -H "Content-Type: application/json" -d "18"
-```
-
-### VOLUME 0-100
-
-```bash
-curl -X POST http://<ip>/api/volume -H "Content-Type: application/json" -d "90"
-```
-
-### MUTE 1 - mute, 0 - unpute
-
-```bash
-curl -X POST http://<ip>/api/mute -H "Content-Type: application/json" -d "1"
-```
-
-### SET EQ 0-9
-
-```bash
-curl -X POST http://<ip>/api/eq -H "Content-Type: application/json" -d "5"
-```
-
-### PLAYER STOP
-
-```bash
-curl -X POST http://<ip>/api/player -H "Content-Type: application/json" -d "stop"
-```
-
-[3D ESP32 PCRadio box](https://www.thingiverse.com/thing:7091753)
+После первой установки основной образ `ESP32-PCRadio.bin` и образ
+`littlefs_image.bin` загружаются через раздел OTA в web-интерфейсе. Flash
+Download Tool для обычного обновления больше не требуется.

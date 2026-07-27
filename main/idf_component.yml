@@ -1,4 +1,0 @@
-dependencies:
-  joltwallet/littlefs: "^1.20.1"
-  espressif/esp_audio_codec: "^2.3.0"
-  espressif/esp_audio_effects: "^1.1.0"
