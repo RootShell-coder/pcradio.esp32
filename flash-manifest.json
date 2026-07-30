@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "project": "ESP32-PCRadio",
+  "chip": "esp32s3",
+  "version": "2.0.0",
+  "flash": {
+    "spi_mode": "DIO",
+    "spi_speed_mhz": 80,
+    "flash_size_mb": 16
+  },
+  "files": [
+    {
+      "file": "bootloader.bin",
+      "offset": "0x0000",
+      "size": 22352,
+      "sha256": "b18a6626744604a28be34e43a63d0a327cc22222707b9f526d2779e02bf36777",
+      "purpose": "Bootloader"
+    },
+    {
+      "file": "partition-table.bin",
+      "offset": "0x8000",
+      "size": 3072,
+      "sha256": "8483fa23b6f15cb55aee2dac00284bb05b636fe053109da7e8eafcf06513deb5",
+      "purpose": "Partition table"
+    },
+    {
+      "file": "ota_data_initial.bin",
+      "offset": "0x19000",
+      "size": 8192,
+      "sha256": "7d2c7ac4888bfd75cd5f56e8d61f69595121183afc81556c876732fd3782c62f",
+      "purpose": "Initial OTA state"
+    },
+    {
+      "file": "ESP32-PCRadio.bin",
+      "offset": "0x20000",
+      "size": 1566000,
+      "sha256": "5e4430ac7d233461e8a27905942c18cff7e8d9ecf4becd35ee14f8c1b23a5abf",
+      "purpose": "Application"
+    },
+    {
+      "file": "littlefs_image.bin",
+      "offset": "0x620000",
+      "size": 1015808,
+      "sha256": "59a05b5a785848d006fab70ab53e9974b6151d1a41bad570c58d2978d8749fa5",
+      "purpose": "WebUI primary slot"
+    },
+    {
+      "file": "littlefs_image.bin",
+      "offset": "0x718000",
+      "size": 1015808,
+      "sha256": "59a05b5a785848d006fab70ab53e9974b6151d1a41bad570c58d2978d8749fa5",
+      "purpose": "WebUI secondary slot"
+    }
+  ]
+}

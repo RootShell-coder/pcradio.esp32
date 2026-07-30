@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "update_id": "2.0.0-4f4967ad",
+  "channel": "stable",
+  "project": "ESP32-PCRadio",
+  "chip": "esp32s3",
+  "git_commit": "4f4967ade19d907015607515b7736c8cc05ea922",
+  "artifact_ref": "refs/heads/update",
+  "firmware": {
+    "version": "2.0.0",
+    "url": "https://raw.githubusercontent.com/RootShell-coder/pcradio.esp32/refs/heads/update/ESP32-PCRadio.bin",
+    "size": 1566000,
+    "sha256": "5e4430ac7d233461e8a27905942c18cff7e8d9ecf4becd35ee14f8c1b23a5abf"
+  },
+  "littlefs": {
+    "version": "2.0.0",
+    "schema_version": 1,
+    "url": "https://raw.githubusercontent.com/RootShell-coder/pcradio.esp32/refs/heads/update/littlefs_image.bin",
+    "size": 1015808,
+    "sha256": "59a05b5a785848d006fab70ab53e9974b6151d1a41bad570c58d2978d8749fa5"
+  },
+  "signature": {
+    "algorithm": "ecdsa-p256-sha256",
+    "file": "update-manifest.json.sig"
+  }
+}
