@@ -2,7 +2,7 @@
   "schema_version": 1,
   "project": "ESP32-PCRadio",
   "chip": "esp32s3",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "flash": {
     "spi_mode": "DIO",
     "spi_speed_mhz": 80,
@@ -33,8 +33,8 @@
     {
       "file": "ESP32-PCRadio.bin",
       "offset": "0x20000",
-      "size": 1566000,
-      "sha256": "5e4430ac7d233461e8a27905942c18cff7e8d9ecf4becd35ee14f8c1b23a5abf",
+      "size": 1566304,
+      "sha256": "f88a0b4f3c6c9489c8c402dca0d2097b1c5a2429abec7642732af053dd61ba0d",
       "purpose": "Application"
     },
     {
