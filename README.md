@@ -20,6 +20,8 @@ web-интерфейс.
 
 [Распиновка используемой платы](docs/Hardware/EST-ESP32-S3_pinout.png).
 
+[Схема подключения ESP32-S3 к модулю ЦАП CJMCU/UDA1334A](docs/Wiring/esp32s3_uda1334a_wiring-preview.png).
+
 ### Совместимые аналоги
 
 Готовые бинарные файлы рассчитаны на ESP32-S3 с **16 МБ Flash и 8 МБ Octal
