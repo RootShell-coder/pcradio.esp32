@@ -1,0 +1,1148 @@
+openapi: 3.0.3
+info:
+  title: PCRadio ESP32 Device API
+  version: 2.2.6
+  description: |
+    HTTP API firmware PCRadio 2.x.
+
+    API не использует аутентификацию и предназначен только для доверенной
+    локальной сети. Команды player выполняются асинхронно: ответ 202 содержит
+    operation_id, а результат отслеживается через GET /api/player/state.
+
+    Обновление плейлиста, firmware и LittleFS разрешено только при остановленном
+    воспроизведении. Firmware и LittleFS устанавливаются совместимой парой.
+servers:
+  - url: http://{device}
+    description: PCRadio в локальной сети
+    variables:
+      device:
+        default: 192.168.4.10
+        description: IPv4-адрес или hostname устройства
+security: []
+tags:
+  - { name: Player }
+  - { name: Audio }
+  - { name: Playlists }
+  - { name: State }
+  - { name: Time }
+  - { name: OTA }
+  - { name: Hardware }
+  - { name: IR }
+
+paths:
+  /api/player/state:
+    get:
+      tags: [Player]
+      operationId: getPlayerState
+      summary: Получить канонический снимок player
+      responses:
+        "200":
+          description: Состояние player, audio, network, TLS, Wi-Fi и памяти
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlayerState" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/player/play:
+    post:
+      tags: [Player]
+      operationId: playMainStation
+      summary: Запустить станцию основного плейлиста
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlayChannelRequest" }
+      responses:
+        "202": { $ref: "#/components/responses/CommandAccepted" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "503": { $ref: "#/components/responses/Busy" }
+
+  /api/player/stop:
+    post:
+      tags: [Player]
+      operationId: stopPlayer
+      summary: Остановить воспроизведение
+      requestBody: { $ref: "#/components/requestBodies/EmptyJson" }
+      responses:
+        "202": { $ref: "#/components/responses/CommandAccepted" }
+        "503": { $ref: "#/components/responses/Busy" }
+
+  /api/player/step:
+    post:
+      tags: [Player]
+      operationId: stepStation
+      summary: Перейти к соседней или явно выбранной станции
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StepRequest" }
+      responses:
+        "202": { $ref: "#/components/responses/CommandAccepted" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Busy" }
+
+  /api/volume:
+    post:
+      tags: [Audio]
+      operationId: setVolume
+      summary: Установить громкость
+      description: Тело содержит только десятичное число без JSON.
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+              pattern: "^(100|[0-9]{1,2})$"
+              example: "75"
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/mute:
+    post:
+      tags: [Audio]
+      operationId: setMute
+      summary: Установить mute
+      description: Допустимы строки true, false, 1 или 0.
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+              enum: ["true", "false", "1", "0"]
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/eq:
+    post:
+      tags: [Audio]
+      operationId: setEqPreset
+      summary: Выбрать индекс EQ preset
+      description: Тело содержит десятичный индекс без JSON. Audio должен играть.
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+              pattern: "^[0-9]+$"
+              example: "5"
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/loudness:
+    post:
+      tags: [Audio]
+      operationId: setLoudness
+      summary: Включить или выключить Loudness
+      requestBody: { $ref: "#/components/requestBodies/EffectToggle" }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/fft-denoise:
+    post:
+      tags: [Audio]
+      operationId: setFftDenoise
+      summary: Включить или выключить FFT denoise
+      requestBody: { $ref: "#/components/requestBodies/EffectToggle" }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/stereo-wide:
+    post:
+      tags: [Audio]
+      operationId: setStereoWide
+      summary: Включить или выключить расширение стереобазы
+      requestBody: { $ref: "#/components/requestBodies/EffectToggle" }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/playlist:
+    get:
+      tags: [Playlists]
+      operationId: getMainPlaylist
+      summary: Получить основной плейлист
+      description: Большой JSON передаётся потоково.
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/playlist/reload:
+    get:
+      tags: [Playlists]
+      operationId: getPlaylistReloadStatus
+      summary: Получить состояние обновления плейлиста
+      responses:
+        "200":
+          description: Состояние фоновой операции
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlaylistReloadState" }
+    post:
+      tags: [Playlists]
+      operationId: reloadPlaylist
+      summary: Запустить обновление плейлиста
+      description: Разрешено только в состоянии STOP.
+      requestBody: { $ref: "#/components/requestBodies/EmptyJson" }
+      responses:
+        "202": { $ref: "#/components/responses/CommandAccepted" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/PlaybackConflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/user-playlist:
+    get:
+      tags: [Playlists]
+      operationId: getUserPlaylist
+      summary: Получить пользовательский плейлист
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+    post:
+      tags: [Playlists]
+      operationId: addUserStation
+      summary: Добавить пользовательскую станцию
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserStationCreate" }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
+    delete:
+      tags: [Playlists]
+      operationId: deleteUserStation
+      summary: Удалить пользовательскую станцию
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StationIdRequest" }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/user-playlist/play:
+    post:
+      tags: [Playlists, Player]
+      operationId: playUserStation
+      summary: Запустить пользовательскую станцию
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StationIdRequest" }
+      responses:
+        "202": { $ref: "#/components/responses/CommandAccepted" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Busy" }
+
+  /api/station/stats:
+    get:
+      tags: [State]
+      operationId: getStationStats
+      summary: Получить статистику всех станций
+      responses:
+        "200":
+          description: Объект с массивом stations
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StationStatsCollection" }
+        "500": { $ref: "#/components/responses/InternalError" }
+    post:
+      tags: [State]
+      operationId: updateStationStats
+      summary: Изменить локальную статистику станции
+      description: |
+        Можно изменить favorite, name и play_count. Вариант unavailable_event
+        должен быть единственной операцией вместе с id.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StationStatsRequest" }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/ui/preferences:
+    get:
+      tags: [State]
+      operationId: getUiPreferences
+      summary: Получить состояние панелей WebUI
+      responses:
+        "200":
+          description: Сохранённые UI preferences
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UiPreferences" }
+    post:
+      tags: [State]
+      operationId: setUiPreferences
+      summary: Сохранить состояние панелей WebUI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UiPreferences" }
+      responses:
+        "200":
+          description: Сохранённые UI preferences
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UiPreferences" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /api/time/config:
+    get:
+      tags: [Time]
+      operationId: getTimeConfig
+      summary: Получить NTP-серверы и timezone
+      responses:
+        "200":
+          description: Конфигурация времени
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TimeConfig" }
+        "503": { $ref: "#/components/responses/Busy" }
+    post:
+      tags: [Time]
+      operationId: setTimeConfig
+      summary: Сохранить NTP-серверы и timezone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TimeConfig" }
+      responses:
+        "200":
+          description: Активная конфигурация времени
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TimeConfig" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "503": { $ref: "#/components/responses/Busy" }
+
+  /api/time/status:
+    get:
+      tags: [Time]
+      operationId: getTimeStatus
+      summary: Получить состояние NTP и ближайшего будильника
+      responses:
+        "200":
+          description: Состояние времени и scheduler
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TimeStatus" }
+
+  /api/alarms:
+    get:
+      tags: [Time]
+      operationId: listAlarms
+      summary: Получить страницу будильников
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: page_size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+    post:
+      tags: [Time]
+      operationId: createAlarm
+      summary: Добавить будильник
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AlarmCreate" }
+      responses:
+        "200": { $ref: "#/components/responses/AlarmSaved" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    put:
+      tags: [Time]
+      operationId: updateAlarm
+      summary: Изменить будильник
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AlarmUpdate" }
+      responses:
+        "200": { $ref: "#/components/responses/AlarmSaved" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    delete:
+      tags: [Time]
+      operationId: deleteAlarm
+      summary: Удалить будильник
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema: { type: string }
+        - name: revision
+          in: query
+          required: true
+          schema: { type: integer, format: int64, minimum: 0 }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/device/identity:
+    get:
+      tags: [State]
+      operationId: getDeviceIdentity
+      summary: Получить публичный ID и режим ключа устройства
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+
+  /api/ota/prepare:
+    post:
+      tags: [OTA]
+      operationId: prepareManualOta
+      summary: Перезапустить устройство в ручной OTA mode
+      description: Player должен быть остановлен. Успешный ответ означает reboot.
+      responses:
+        "200": { $ref: "#/components/responses/OtaMessage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/PlaybackConflict" }
+
+  /api/ota:
+    post:
+      tags: [OTA]
+      operationId: uploadFirmware
+      summary: Проверить и поместить firmware в staging slot
+      description: Требуется OTA mode и остановленный player.
+      parameters:
+        - { $ref: "#/components/parameters/OtaBatchHeader" }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        "200": { $ref: "#/components/responses/OtaMessage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/ota/littlefs:
+    post:
+      tags: [OTA]
+      operationId: uploadLittlefs
+      summary: Проверить и поместить LittleFS в staging slot
+      description: Версия WebUI должна совпадать с firmware из той же пары.
+      parameters:
+        - { $ref: "#/components/parameters/OtaBatchHeader" }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        "200": { $ref: "#/components/responses/OtaMessage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/ota/manual/commit:
+    post:
+      tags: [OTA]
+      operationId: commitManualOta
+      summary: Активировать проверенную пару firmware и LittleFS
+      description: Успешный ответ означает reboot в новую пару.
+      responses:
+        "200": { $ref: "#/components/responses/OtaMessage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/ota/status:
+    get:
+      tags: [OTA]
+      operationId: getManualOtaStatus
+      summary: Получить состояние ручного OTA
+      responses:
+        "200":
+          description: Progress текущей OTA-операции
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OtaStatus" }
+
+  /api/ota/remote:
+    get:
+      tags: [OTA]
+      operationId: getRemoteOtaStatus
+      summary: Получить режим и состояние remote OTA
+      responses:
+        "200":
+          description: Remote OTA state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RemoteOtaState" }
+    post:
+      tags: [OTA]
+      operationId: setRemoteOtaMode
+      summary: Сохранить режим remote OTA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RemoteOtaMode" }
+      responses:
+        "200":
+          description: Обновлённый remote OTA state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RemoteOtaState" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "408": { $ref: "#/components/responses/RequestTimeout" }
+
+  /api/ota/remote/check:
+    post:
+      tags: [OTA]
+      operationId: checkRemoteOta
+      summary: Проверить подписанный комплект обновления
+      description: Разрешено только при остановленном player.
+      responses:
+        "200":
+          description: Remote OTA state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RemoteOtaState" }
+        "409": { $ref: "#/components/responses/PlaybackConflict" }
+        "503": { $ref: "#/components/responses/Busy" }
+
+  /api/ota/remote/install:
+    post:
+      tags: [OTA]
+      operationId: installRemoteOta
+      summary: Установить проверенный remote комплект
+      description: Разрешено только при остановленном player.
+      responses:
+        "200":
+          description: Remote OTA state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RemoteOtaState" }
+        "409": { $ref: "#/components/responses/PlaybackConflict" }
+        "503": { $ref: "#/components/responses/Busy" }
+
+  /api/power:
+    get:
+      tags: [Hardware]
+      operationId: getPowerState
+      summary: Получить состояние AMP, реле, backlight и WLED
+      responses:
+        "200":
+          description: Power/GPIO snapshot
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PowerState" }
+
+  /api/power/off:
+    post:
+      tags: [Hardware]
+      operationId: enterStandby
+      summary: Безопасно перейти в IR standby
+      description: |
+        Реле отключается раньше AMP power. Wi-Fi может перейти в standby,
+        поэтому последующее включение выполняется GPIO POWER или IR.
+      responses:
+        "202":
+          description: Power transition accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PowerState" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/ir:
+    get:
+      tags: [IR]
+      operationId: getIrState
+      summary: Получить bindings, learning state и RMT RX counters
+      responses:
+        "200":
+          description: IR state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IrState" }
+
+  /api/ir/learn:
+    post:
+      tags: [IR]
+      operationId: startIrLearning
+      summary: Начать обучение одного IR-действия
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IrActionRequest" }
+      responses:
+        "201":
+          description: Learning session создана
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IrSession" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/ir/cancel:
+    post:
+      tags: [IR]
+      operationId: cancelIrLearning
+      summary: Отменить IR learning session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IrSession" }
+      responses:
+        "200":
+          description: IR state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IrState" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/ir/confirm:
+    post:
+      tags: [IR]
+      operationId: confirmIrLearning
+      summary: Подтвердить IR learning session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IrConfirmRequest" }
+      responses:
+        "200":
+          description: IR state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IrState" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/ir/binding:
+    delete:
+      tags: [IR]
+      operationId: deleteIrBinding
+      summary: Удалить binding одного действия
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IrActionRequest" }
+      responses:
+        "200":
+          description: IR state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IrState" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+components:
+  parameters:
+    OtaBatchHeader:
+      name: X-PCRadio-OTA-Batch
+      in: header
+      required: true
+      description: Оба образа staging-пары используют фиксированное значение stage.
+      schema: { type: string, enum: [stage] }
+
+  requestBodies:
+    EmptyJson:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, maxProperties: 0 }
+          example: {}
+    EffectToggle:
+      required: true
+      description: Ровно один байт 0 или 1.
+      content:
+        text/plain:
+          schema:
+            type: string
+            enum: ["0", "1"]
+            minLength: 1
+            maxLength: 1
+
+  responses:
+    Success:
+      description: Операция выполнена
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/GenericObject" }
+    CommandAccepted:
+      description: Команда поставлена в очередь
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/CommandAccepted" }
+    AlarmSaved:
+      description: Будильник сохранён
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/AlarmSaved" }
+    OtaMessage:
+      description: Состояние OTA-запроса
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/OtaMessage" }
+    BadRequest:
+      description: Некорректный запрос
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: Операция запрещена в текущей сети или режиме
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Объект не найден
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: Конфликт состояния, revision или активной операции
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    PlaybackConflict:
+      description: Сначала необходимо остановить воспроизведение
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    RequestTimeout:
+      description: Тело запроса не принято вовремя
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Busy:
+      description: Очередь, worker или память временно недоступны
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    InternalError:
+      description: Внутренняя ошибка firmware
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    GenericObject:
+      type: object
+      additionalProperties: true
+
+    Error:
+      type: object
+      additionalProperties: true
+      properties:
+        status: { type: string, example: error }
+        code: { type: string, example: playback_active }
+        message: { type: string }
+      required: [status]
+
+    CommandAccepted:
+      type: object
+      properties:
+        status: { type: string, enum: [accepted] }
+        operation_id: { type: integer, format: int64, minimum: 1 }
+        channel: { type: integer, minimum: 1 }
+      required: [status, operation_id]
+
+    PlayChannelRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        channel: { type: integer, minimum: 1 }
+      required: [channel]
+
+    StepRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        delta:
+          type: integer
+          minimum: -100000
+          maximum: 100000
+          not: { enum: [0] }
+          example: 1
+        channel:
+          type: integer
+          minimum: 1
+          maximum: 100000
+          description: Если указан, выбирается этот канал вместо поиска по delta.
+      required: [delta]
+
+    PlayerState:
+      type: object
+      additionalProperties: true
+      properties:
+        status:
+          type: string
+          enum: [stopped, buffering, playing, reconnecting, unavailable, unsupported, error]
+        firmware_version: { type: string, example: 2.2.6 }
+        boot_id: { type: integer, format: int64 }
+        generation: { type: integer, format: int64 }
+        channel: { type: integer }
+        station_id: { $ref: "#/components/schemas/StationId" }
+        station_name: { type: string }
+        channel_exists: { type: boolean }
+        channel_available: { type: boolean }
+        playback_enabled: { type: boolean }
+        audio: { $ref: "#/components/schemas/AudioState" }
+        network: { $ref: "#/components/schemas/NetworkState" }
+        control: { $ref: "#/components/schemas/ControlState" }
+        memory: { $ref: "#/components/schemas/MemoryState" }
+      required: [status, firmware_version, boot_id, generation, audio, network, control, memory]
+
+    AudioState:
+      type: object
+      additionalProperties: true
+      properties:
+        codec: { type: string }
+        sample_rate_hz: { type: integer }
+        bits_per_sample: { type: integer }
+        channels: { type: integer }
+        bitrate_kbps: { type: integer }
+        volume_percent: { type: integer, minimum: 0, maximum: 100 }
+        muted: { type: boolean }
+        decode_error_count: { type: integer }
+        i2s_xrun_count: { type: integer }
+        pcm_write_count: { type: integer }
+        last_pcm_age_ms: { type: integer }
+
+    NetworkState:
+      type: object
+      additionalProperties: true
+      properties:
+        speed_kbps: { type: integer }
+        received_bytes: { type: integer, format: int64 }
+        buffered_bytes: { type: integer }
+        buffer_capacity_bytes: { type: integer }
+        buffer_fill_percent: { type: number }
+        buffer_seconds: { type: number }
+        reconnect_count: { type: integer }
+        wifi_rssi_dbm: { type: integer }
+        wifi_tx_power_mode: { type: string, enum: [auto] }
+        wifi_tx_power_dbm: { type: integer }
+
+    ControlState:
+      type: object
+      additionalProperties: true
+      properties:
+        accepted_operation_id: { type: integer, format: int64 }
+        running_operation_id: { type: integer, format: int64 }
+        completed_operation_id: { type: integer, format: int64 }
+        running: { type: boolean }
+        pending: { type: boolean }
+        updates_available: { type: boolean }
+        result: { type: string }
+
+    MemoryState:
+      type: object
+      properties:
+        internal_free: { type: integer }
+        internal_largest: { type: integer }
+        internal_minimum: { type: integer }
+        psram_free: { type: integer }
+        psram_largest: { type: integer }
+        psram_minimum: { type: integer }
+      required: [internal_free, internal_largest, internal_minimum, psram_free, psram_largest, psram_minimum]
+
+    PlaylistReloadState:
+      type: object
+      properties:
+        status: { type: string, enum: [updating, success, error] }
+        running: { type: boolean }
+        accepted_operation_id: { type: integer, format: int64 }
+        completed_operation_id: { type: integer, format: int64 }
+        result: { type: string }
+        channel_count: { type: integer }
+      required: [status, running, accepted_operation_id, completed_operation_id, result, channel_count]
+
+    StationId:
+      type: string
+      pattern: "^[0-9A-Fa-f]{16}$"
+      example: 20e5fa56d6c0f4e7
+
+    StationIdRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        id: { $ref: "#/components/schemas/StationId" }
+      required: [id]
+
+    UserStationCreate:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1 }
+        url: { type: string, format: uri, pattern: "^https?://" }
+      required: [name, url]
+
+    StationStatsCollection:
+      type: object
+      properties:
+        stations:
+          type: array
+          items: { $ref: "#/components/schemas/GenericObject" }
+      required: [stations]
+
+    StationStatsRequest:
+      type: object
+      additionalProperties: false
+      description: |
+        favorite, name и play_count могут передаваться совместно.
+        unavailable_event передаётся только вместе с id.
+      properties:
+        id: { $ref: "#/components/schemas/StationId" }
+        name: { type: string }
+        favorite: { type: boolean }
+        play_count: { type: integer, format: int64, minimum: 0, maximum: 4294967295 }
+        unavailable_event:
+          type: object
+          additionalProperties: false
+          properties:
+            event_id: { type: string, minLength: 1 }
+          required: [event_id]
+      required: [id]
+      anyOf:
+        - { required: [favorite] }
+        - { required: [play_count] }
+        - { required: [unavailable_event] }
+
+    UiPreferences:
+      type: object
+      additionalProperties: false
+      properties:
+        collapsed_groups:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [favorites, playlist, top, equalizer, update, channel, time]
+      required: [collapsed_groups]
+
+    TimeConfig:
+      type: object
+      additionalProperties: false
+      properties:
+        servers:
+          type: array
+          minItems: 1
+          items: { type: string, minLength: 1 }
+          example: [pool.ntp.org, time.google.com]
+        timezone: { type: string, minLength: 1, example: Europe/Moscow }
+      required: [servers, timezone]
+
+    TimeStatus:
+      type: object
+      additionalProperties: true
+      properties:
+        synchronized: { type: boolean }
+        local_datetime: { type: string }
+        last_sync_epoch: { type: integer, format: int64 }
+        active_alarm: { $ref: "#/components/schemas/GenericObject" }
+        next_alarm: { $ref: "#/components/schemas/GenericObject" }
+      required: [synchronized, local_datetime, last_sync_epoch, active_alarm, next_alarm]
+
+    AlarmBase:
+      type: object
+      additionalProperties: false
+      properties:
+        revision: { type: integer, format: int64, minimum: 0 }
+        title: { type: string }
+        date: { type: string, description: "Пустая строка или локальная календарная дата." }
+        station_id: { type: string }
+        hour: { type: integer, minimum: 0, maximum: 23 }
+        minute: { type: integer, minimum: 0, maximum: 59 }
+        weekdays: { type: integer, minimum: 0, maximum: 127, description: "Битовая маска дней недели." }
+        fade_seconds: { type: integer, minimum: 0, maximum: 3600 }
+        target_volume: { type: integer, minimum: 0, maximum: 100 }
+        enabled: { type: boolean }
+      required: [revision, title, date, station_id, hour, minute, weekdays, fade_seconds, target_volume, enabled]
+
+    AlarmCreate:
+      allOf:
+        - { $ref: "#/components/schemas/AlarmBase" }
+
+    AlarmUpdate:
+      allOf:
+        - { $ref: "#/components/schemas/AlarmBase" }
+        - type: object
+          properties:
+            id: { type: string }
+          required: [id]
+
+    AlarmSaved:
+      type: object
+      properties:
+        status: { type: string, enum: [success] }
+        id: { type: string }
+        revision: { type: integer, format: int64 }
+      required: [status, id, revision]
+
+    OtaMessage:
+      type: object
+      additionalProperties: true
+      properties:
+        status: { type: string }
+        message: { type: string }
+        rebooting: { type: boolean }
+      required: [status, message]
+
+    OtaStatus:
+      type: object
+      additionalProperties: true
+      properties:
+        running: { type: boolean }
+        update_mode: { type: boolean }
+        operating_mode: { type: string }
+        operation: { type: string }
+        received_bytes: { type: integer, format: int64 }
+        total_bytes: { type: integer, format: int64 }
+        progress_percent: { type: number }
+        result: { type: string }
+
+    RemoteOtaMode:
+      type: object
+      additionalProperties: false
+      properties:
+        mode: { type: string, enum: [manual, notify, automatic] }
+      required: [mode]
+
+    RemoteOtaState:
+      type: object
+      additionalProperties: true
+      properties:
+        mode: { type: string, enum: [manual, notify, automatic] }
+        checking: { type: boolean }
+        scheduled: { type: boolean }
+        playback_active: { type: boolean }
+        available: { type: boolean }
+        downgrade: { type: boolean }
+        update_id: { type: string }
+        firmware_version: { type: string }
+        result: { type: string }
+        install_stage: { type: string }
+        install_received_bytes: { type: integer, format: int64 }
+        install_total_bytes: { type: integer, format: int64 }
+        artifact_received_bytes: { type: integer, format: int64 }
+        artifact_total_bytes: { type: integer, format: int64 }
+        install_progress_percent: { type: number }
+        signing_key_sha256: { type: string }
+      required: [mode, checking, scheduled, playback_active, available, downgrade, result]
+
+    PowerState:
+      type: object
+      additionalProperties: true
+      properties:
+        state: { type: string }
+        generation: { type: integer, format: int64 }
+        amp_power: { type: boolean }
+        speaker_relay: { type: boolean }
+        pending_power_off: { type: boolean }
+        result: { type: string }
+        backlight: { $ref: "#/components/schemas/BacklightState" }
+        wled: { $ref: "#/components/schemas/WledState" }
+      required: [state, generation, amp_power, speaker_relay, pending_power_off, result, backlight, wled]
+
+    BacklightState:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        brightness_percent: { type: integer, minimum: 0, maximum: 100 }
+        fade_ms: { type: integer, minimum: 0, maximum: 5000 }
+        duty: { type: integer, minimum: 0, maximum: 1023 }
+
+    WledState:
+      type: object
+      properties:
+        ready: { type: boolean }
+        revision: { type: integer, format: int64 }
+        transmissions: { type: integer, format: int64 }
+        errors: { type: integer, format: int64 }
+        leds:
+          type: array
+          items: { $ref: "#/components/schemas/WledPixel" }
+
+    WledPixel:
+      type: object
+      properties:
+        name: { type: string, enum: [PWR, AMP, SPK, WIFI, BUF] }
+        state: { type: string }
+        rgb:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items: { type: integer, minimum: 0, maximum: 255 }
+
+    IrAction:
+      type: string
+      enum: [power, prev, play_stop, next, mute, volume_down, volume_up]
+
+    IrActionRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        action: { $ref: "#/components/schemas/IrAction" }
+      required: [action]
+
+    IrSession:
+      type: object
+      additionalProperties: false
+      properties:
+        session_id: { type: string }
+      required: [session_id]
+
+    IrConfirmRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        session_id: { type: string }
+        replace: { type: boolean, default: false }
+      required: [session_id]
+
+    IrState:
+      type: object
+      additionalProperties: true
+      properties:
+        revision: { type: integer, format: int64 }
+        dispatched: { type: integer, format: int64 }
+        ignored: { type: integer, format: int64 }
+        persistence_errors: { type: integer, format: int64 }
+        learning: { $ref: "#/components/schemas/GenericObject" }
+        bindings:
+          type: array
+          items: { $ref: "#/components/schemas/GenericObject" }
+        receiver: { $ref: "#/components/schemas/GenericObject" }
+      required: [revision, dispatched, ignored, persistence_errors, learning, bindings, receiver]
