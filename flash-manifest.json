@@ -2,7 +2,7 @@
   "schema_version": 1,
   "project": "ESP32-PCRadio",
   "chip": "esp32s3",
-  "version": "2.2.8",
+  "version": "2.2.9",
   "flash": {
     "spi_mode": "DIO",
     "spi_speed_mhz": 80,
@@ -13,7 +13,7 @@
       "file": "bootloader.bin",
       "offset": "0x0000",
       "size": 22352,
-      "sha256": "56ea9bcef086dc6d705e9b01acf2043351bf648394e571e622de9c5539e4b2bb",
+      "sha256": "323df484b468e5f8bfdbac81be71cf6793a03d09755fba4f66a013fd9b3441b9",
       "purpose": "Bootloader"
     },
     {
@@ -33,22 +33,22 @@
     {
       "file": "ESP32-PCRadio.bin",
       "offset": "0x20000",
-      "size": 1648880,
-      "sha256": "fb9215e7e5476cb853224e8c1fb730619d224ef1e6f63cfa26d6899690187691",
+      "size": 1652432,
+      "sha256": "0d734288466117286310c8438a69c2897fa0ac42db179ce72e24868cc9ed71d5",
       "purpose": "Application"
     },
     {
       "file": "littlefs_image.bin",
       "offset": "0x620000",
       "size": 1015808,
-      "sha256": "1ac84d3218b409f5be543d7ec6ad199d2d13e5a6bb2b01119d3c39747fd59adb",
+      "sha256": "b9956d6436eff8e1ba91c2e84ca4b31be9bf509c90b685adaf00b5014a378a7e",
       "purpose": "WebUI primary slot"
     },
     {
       "file": "littlefs_image.bin",
       "offset": "0x718000",
       "size": 1015808,
-      "sha256": "1ac84d3218b409f5be543d7ec6ad199d2d13e5a6bb2b01119d3c39747fd59adb",
+      "sha256": "b9956d6436eff8e1ba91c2e84ca4b31be9bf509c90b685adaf00b5014a378a7e",
       "purpose": "WebUI secondary slot"
     }
   ]
