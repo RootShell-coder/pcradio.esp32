@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: PCRadio ESP32 Device API
-  version: 2.2.6
+  version: 3.0.0
   description: |
-    HTTP API firmware PCRadio 2.x.
+    HTTP API firmware PCRadio 3.0.0.
 
     API не использует аутентификацию и предназначен только для доверенной
     локальной сети. Команды player выполняются асинхронно: ответ 202 содержит
@@ -808,12 +808,15 @@ components:
       properties:
         status:
           type: string
-          enum: [stopped, buffering, playing, reconnecting, unavailable, unsupported, error]
-        firmware_version: { type: string, example: 2.2.6 }
+          enum: [stopped, connecting, buffering, playing, reconnecting, unavailable, unsupported, error]
+        firmware_version: { type: string, example: 3.0.0 }
         boot_id: { type: integer, format: int64 }
         generation: { type: integer, format: int64 }
         channel: { type: integer }
-        station_id: { $ref: "#/components/schemas/StationId" }
+        station_id:
+          type: string
+          pattern: "^([0-9A-Fa-f]{16})?$"
+          description: Идентификатор станции или пустая строка, если станция ещё не определена.
         station_name: { type: string }
         channel_exists: { type: boolean }
         channel_available: { type: boolean }
@@ -853,7 +856,11 @@ components:
         reconnect_count: { type: integer }
         wifi_rssi_dbm: { type: integer }
         wifi_tx_power_mode: { type: string, enum: [auto] }
-        wifi_tx_power_dbm: { type: integer }
+        wifi_tx_power_dbm:
+          type: number
+          nullable: true
+          description: Мощность передатчика в dBm; null, если получить значение не удалось.
+          example: 19.5
 
     ControlState:
       type: object
